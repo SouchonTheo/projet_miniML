@@ -41,4 +41,26 @@ module TypeVariable : VariableSpec =
 
 
 (* ******** à compléter ********* *)
-       
+
+(*Signature pour définir l'environnement*)
+module type EnvironnementSpec =
+  sig
+    (*Le type de l'environnement*)
+    type env
+    (*Le type des variables*)
+    type var
+    (*Le type des équations (type1 ≡ type2)*)
+    type eqn
+    (*Créer l'environement initial*)
+    val nouveau: unit -> env
+
+    (*Ajouter un couple (variable:type) à l'environnement*)
+    val ajouterCouple: env -> var -> typ -> env
+
+    (*Ajouter une equation (type1 ≡ type2) à l'environnement*)
+    val ajouterEquation: env -> typEnv -> typEnv -> env
+
+    (*Obtenir le type associé à une variable si elle est présente dans l'environnement*)
+    val obtenirType: env -> var -> typ option
+
+end
