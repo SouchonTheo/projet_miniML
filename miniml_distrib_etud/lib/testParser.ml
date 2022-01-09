@@ -162,19 +162,107 @@ let rec parse_expr : (token, expr) parser = fun flux ->
       fun  (((((), ()), (ident, expr1)), ()), expr2) -> return (ELetrec (ident, expr1, expr2))
     ) ++
     ( accept PARO *> parse_expr *> parse_binop *> parse_expr *> accept PARF >>=
-      fun (((((), expr1), binop), expr2), ()) -> return ???
+      fun (((((), expr1), binop), expr2), ()) -> 
+    ) ++ 
+    ( accept PARO *> parse_expr *> accept PARF >>=
+      fun (((), expr1),()) -> return ???
+    ) ++ 
+    (accept PARO *> parse_expr *> parse_expr *>  accept PARF >>=
+      fun ((((), expr1), expr2), ()) -> return (EProd (expr1, expr2))
+    ) ++ 
+    ( accept IF *> parse_expr *> accept THEN *> parse_expr *>  accept ELSE *> parse_expr >>=
+      fun ((((((), expr1), ()), expr2), ()), expr3) -> return (EIf (expr1, expr2, expr3))
+    ) ++
+    ( accept PARO *> accept FUN *> accept IDENT *> accept TO *> parse_expr *>  accept PARF >>=
+      fun ((((((), ()), ident), ()), expr),()) -> return (EFun (ident, expr))
+    ) ++
+    ( accept IDENT >>=
+      fun ident -> return (EIdent ident)
+    ) ++
+    ( accept CONSTANT >>=
+      fun constant -> return (EConstant constant)
     )
   ) flux
-and parse_liaison = return zero
-
-and parse_binop =
-
-and parse_arithop
-
-and parse_boolop
-
-and parse_relop
-
-and parse_const
-
+and parse_liaison = fun flux ->
+  ( accept IDENT *> accept EQU *> parse_expr >>=
+      fun ((ident,()),expr) -> return (ident, expr)
+  ) flux
+and parse_binop = fun flux ->
+  ( 
+    ( parse_arithop >>=
+      fun arothop -> return arothop
+    ) ++
+    ( parse_boolop >>=
+      fun boolop -> return boolop
+    ) ++
+    ( parse_relop >>=
+      fun relop -> return relop
+    ) ++
+    ( accept CONCAT >>=
+      fun concat -> return (EBinop concat)
+    ) ++
+    ( accept CONS >>=
+      fun cons -> return (EBinop cons)
+    )
+  ) flux
+and parse_arithop = fun flux ->
+  (
+    ( accept PLUS >>=
+      fun  plus -> return (EBinop plus)
+    ) ++
+    ( accept MOINS >>=
+      fun moins -> return (EBinop moins)
+    ) ++
+    ( accept MULT >>=
+      fun  mult -> return (EBinop mult)
+    ) ++
+    ( accept DIV >>=
+      fun  div -> return (EBinop div)
+    ) 
+  ) flux
+and parse_boolop = fun flux ->
+  (
+    ( accept AND >>=
+      fun  ad -> return (EBinop ad)
+    ) ++
+    ( accept OR >>=
+      fun ou -> return (EBinop ou)
+    ) 
+  ) flux
+and parse_relop = fun flux ->
+  (
+    ( accept EQU >>=
+      fun  equ -> return (EBinop equ)
+    ) ++
+    ( accept NOTEQ >>=
+      fun  noteq -> return (EBinop noteq)
+    ) ++
+    ( accept INFEQ >>=
+      fun  infeq -> return (EBinop infeq)
+    ) ++
+    ( accept INF >>=
+      fun  inf -> return (EBinop inf)
+    ) ++
+    ( accept SUPEQ >>=
+      fun  supeq -> return (EBinop supeq)
+    ) ++
+    ( accept SUP >>=
+      fun sup -> return (EBinop sup)
+    ) 
+  ) flux
+and parse_const = fun flux ->
+  (
+    ( accept INT >>=
+      fun entier -> return (CEntier entier)
+    ) ++
+    ( accept BOOL >>=
+      fun bool -> return (CBooleen bool)
+    ) ++
+    ( accept CROO  *> accept CROF >>=
+      fun ((),()) -> return CNil
+    ) ++
+    ( accept PARO  *> accept PARF >>=
+      fun ((),()) -> return CUnit
+    ) 
+  ) flux
 let parser flux : (token Flux.t -> ('a, 'b) result)
