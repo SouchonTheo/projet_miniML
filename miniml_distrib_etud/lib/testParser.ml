@@ -162,13 +162,17 @@ let rec parse_expr : (token, expr) parser = fun flux ->
       fun  (((((), ()), (ident, expr1)), ()), expr2) -> return (ELetrec (ident, expr1, expr2))
     ) ++
     ( accept PARO *> parse_expr *> parse_binop *> parse_expr *> accept PARF >>=
-      fun (((((), expr1), binop), expr2), ()) -> 
+      fun (((((), expr1), binop), expr2), ()) ->  if binop = EBinop (CONS) then 
+                                                    return (ECons (expr1, expr2))
+                                                  else if binop = EBinop ()
+                                                  else if
+                                                  EApply ( EApply ( expr1, binop ), expr2))
     ) ++ 
     ( accept PARO *> parse_expr *> accept PARF >>=
-      fun (((), expr1),()) -> return ???
+      fun (((), expr1),()) -> return expr1
     ) ++ 
     (accept PARO *> parse_expr *> parse_expr *>  accept PARF >>=
-      fun ((((), expr1), expr2), ()) -> return (EProd (expr1, expr2))
+      fun ((((), expr1), expr2), ()) -> return (EApply (expr1, expr2))
     ) ++ 
     ( accept IF *> parse_expr *> accept THEN *> parse_expr *>  accept ELSE *> parse_expr >>=
       fun ((((((), expr1), ()), expr2), ()), expr3) -> return (EIf (expr1, expr2, expr3))
@@ -179,7 +183,7 @@ let rec parse_expr : (token, expr) parser = fun flux ->
     ( accept IDENT >>=
       fun ident -> return (EIdent ident)
     ) ++
-    ( accept CONSTANT >>=
+    ( parse_const >>=
       fun constant -> return (EConstant constant)
     )
   ) flux
@@ -190,13 +194,13 @@ and parse_liaison = fun flux ->
 and parse_binop = fun flux ->
   ( 
     ( parse_arithop >>=
-      fun arothop -> return arothop
+      fun arothop -> return arothop (* Ebinop inclut dans arothop *)
     ) ++
     ( parse_boolop >>=
-      fun boolop -> return boolop
+      fun boolop -> return boolop (* Ebinop inclut dans boolop *)
     ) ++
     ( parse_relop >>=
-      fun relop -> return relop
+      fun relop -> return relop (* Ebinop inclut dans relop *)
     ) ++
     ( accept CONCAT >>=
       fun concat -> return (EBinop concat)
