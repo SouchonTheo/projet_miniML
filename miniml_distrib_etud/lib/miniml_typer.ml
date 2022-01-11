@@ -118,6 +118,7 @@ module type TyperSpec =
     val normalisation : environnement -> typeExpr -> (string list * typeExpr option)
 end
 
+(*Typer sans polymorphisme*)
 module TypeTyper : TyperSpec =
   struct
     type expression = expr
@@ -152,7 +153,7 @@ module TypeTyper : TyperSpec =
               (newEnv3, tau2)
 
           | EFun(identifiant, expr1) -> let alpha = ModuleEnv.ModuleVar.fraiche () in 
-              let newEnv1 = ModuleEnv.ajouterCouple env identifiant TVar(alpha) in 
+          let newEnv1 = ModuleEnv.ajouterCouple env identifiant TVar(alpha) in 
               let (newEnv2, tau) = inference newEnv1 expr1 in
               (newEnv2, TFun(TVar(alpha),tau))
 
@@ -169,7 +170,13 @@ module TypeTyper : TyperSpec =
               let newEnv3 = ModuleEnv.ajouterEquation newEnv2 tau1 TFun(tau2, Tvar(alpha)) in
               (newEnv3, alpha) 
 
-          | EBinop(tokenOP) -> failwith("TODO")
+          | EBinop(tokenOP) -> match tokenOP with
+              |CONCAT -> let alpha1 = ModuleEnv.ModuleVar.fraiche () in 
+                  (env, TFun(TList(TVar(alpha)), TFun(TList(TVar(alpha)), TList(TVar(alpha)))))
+              |PLUS | MOINS |MULT |DIV -> (env, TFun(TInt, TFun(TInt, TInt)))
+              |AND | OR -> (env, TFun(TBool, TFun(TBool, TBool)))
+              |EQU |NOTEQ |INF |INFEQ |SUP |SUPEQ -> let alpha = ModuleEnv.ModuleVar.fraiche () in 
+                  (env, TFun(TVar(alpha), TFun(TVar(alpha), TBool)))
 
           | ELet(identifiant,exprLet, exprIn) -> let (newEnv1, tau1) = inference env exprLet in
               let newEnv2 = ModuleEnv.ajouterCouple newEnv1 identifiant tau in 
