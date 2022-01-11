@@ -153,7 +153,7 @@ let accept token : (token -> (token, unit) parser) =
   ptest ((=) token)
 
 
-let rec parse_expr : (token, expr) parser = fun flux ->
+let rec parse_expr : token Flux.t -> expr = fun flux ->
   (
     (accept LET *> parse_liaison *> accept IN *> parse_expr >>=
       fun  ((((), (ident, expr1)), ()), expr2) -> return (ELet (ident, expr1, expr2))
@@ -164,9 +164,8 @@ let rec parse_expr : (token, expr) parser = fun flux ->
     ( accept PARO *> parse_expr *> parse_binop *> parse_expr *> accept PARF >>=
       fun (((((), expr1), binop), expr2), ()) ->  if binop = EBinop (CONS) then 
                                                     return (ECons (expr1, expr2))
-                                                  else if binop = EBinop ()
-                                                  else if
-                                                  EApply ( EApply ( expr1, binop ), expr2))
+                                                  else 
+                                                    EApply ( binop EProd ( expr1, expr2))
     ) ++ 
     ( accept PARO *> parse_expr *> accept PARF >>=
       fun (((), expr1),()) -> return expr1
@@ -269,4 +268,7 @@ and parse_const = fun flux ->
       fun _ -> return CUnit
     ) 
   ) flux
-let parser flux : (token Flux.t -> ('a, 'b) result)
+
+
+
+let parsefile filename = parse_expr (read_miniml_tokens_from_file filename)
