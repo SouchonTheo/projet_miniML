@@ -259,10 +259,10 @@ and parse_const = fun flux ->
       fun bool -> return (CBooleen bool)
     ) ++
     ( accept CROO  *> accept CROF >>=
-      fun ((),()) -> return CNil
+      fun _ -> return CNil
     ) ++
     ( accept PARO  *> accept PARF >>=
-      fun ((),()) -> return CUnit
+      fun _ -> return CUnit
     ) 
   ) flux
 let parser flux : (token Flux.t -> ('a, 'b) result)
