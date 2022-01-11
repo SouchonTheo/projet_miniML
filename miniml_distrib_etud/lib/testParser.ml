@@ -153,7 +153,7 @@ let accept token : (token -> (token, unit) parser) =
   ptest ((=) token)
 
 
-let rec parse_expr : (token, expr) parser = fun flux ->
+let rec parse_expr : token Flux.t -> expr = fun flux ->
   (
     (accept LET *> parse_liaison *> accept IN *> parse_expr >>=
       fun  ((((), (ident, expr1)), ()), expr2) -> return (ELet (ident, expr1, expr2))
@@ -162,13 +162,16 @@ let rec parse_expr : (token, expr) parser = fun flux ->
       fun  (((((), ()), (ident, expr1)), ()), expr2) -> return (ELetrec (ident, expr1, expr2))
     ) ++
     ( accept PARO *> parse_expr *> parse_binop *> parse_expr *> accept PARF >>=
-      fun (((((), expr1), binop), expr2), ()) -> 
+      fun (((((), expr1), binop), expr2), ()) ->  if binop = EBinop (CONS) then 
+                                                    return (ECons (expr1, expr2))
+                                                  else 
+                                                    EApply ( binop EProd ( expr1, expr2))
     ) ++ 
     ( accept PARO *> parse_expr *> accept PARF >>=
-      fun (((), expr1),()) -> return ???
+      fun (((), expr1),()) -> return expr1
     ) ++ 
     (accept PARO *> parse_expr *> parse_expr *>  accept PARF >>=
-      fun ((((), expr1), expr2), ()) -> return (EProd (expr1, expr2))
+      fun ((((), expr1), expr2), ()) -> return (EApply (expr1, expr2))
     ) ++ 
     ( accept IF *> parse_expr *> accept THEN *> parse_expr *>  accept ELSE *> parse_expr >>=
       fun ((((((), expr1), ()), expr2), ()), expr3) -> return (EIf (expr1, expr2, expr3))
@@ -179,7 +182,7 @@ let rec parse_expr : (token, expr) parser = fun flux ->
     ( accept IDENT >>=
       fun ident -> return (EIdent ident)
     ) ++
-    ( accept CONSTANT >>=
+    ( parse_const >>=
       fun constant -> return (EConstant constant)
     )
   ) flux
@@ -190,13 +193,13 @@ and parse_liaison = fun flux ->
 and parse_binop = fun flux ->
   ( 
     ( parse_arithop >>=
-      fun arothop -> return arothop
+      fun arothop -> return arothop (* Ebinop inclut dans arothop *)
     ) ++
     ( parse_boolop >>=
-      fun boolop -> return boolop
+      fun boolop -> return boolop (* Ebinop inclut dans boolop *)
     ) ++
     ( parse_relop >>=
-      fun relop -> return relop
+      fun relop -> return relop (* Ebinop inclut dans relop *)
     ) ++
     ( accept CONCAT >>=
       fun concat -> return (EBinop concat)
@@ -259,10 +262,13 @@ and parse_const = fun flux ->
       fun bool -> return (CBooleen bool)
     ) ++
     ( accept CROO  *> accept CROF >>=
-      fun ((),()) -> return CNil
+      fun _ -> return CNil
     ) ++
     ( accept PARO  *> accept PARF >>=
-      fun ((),()) -> return CUnit
+      fun _ -> return CUnit
     ) 
   ) flux
-let parser flux : (token Flux.t -> ('a, 'b) result)
+
+
+
+let parsefile filename = parse_expr (read_miniml_tokens_from_file filename)
