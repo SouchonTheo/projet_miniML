@@ -73,23 +73,21 @@ module TypeEnvironnement : EnvironnementSpec =
       module ModuleVar = TypeVariable
       type ensEquation = (ModuleVar.t typ * ModuleVar.t typ) list
 
-      type env = ((ident, ModuleVar.t typ) Hashtbl.t) * ((ModuleVar.t typ * ModuleVar.t typ) list)
+      type env = ((ident* ModuleVar.t typ) list) * ((ModuleVar.t typ * ModuleVar.t typ) list)
 
       (*Taille de la table arbitraire*)
-      let nouveau : unit -> env = fun () -> (Hashtbl.create 128,[])
+      let nouveau : unit -> env = fun () -> ([],[])
 
       let ajouterCouple : env -> ident -> ModuleVar.t typ -> env = fun (tableType, listeEquation) variable typeVar ->
-        Hashtbl.add tableType variable typeVar; 
-        let newTable = Hashtbl.copy tableType
-          in (newTable, listeEquation)
+        ((variable, typeVar)::tableType, listeEquation)
 
       let ajouterEquation : env -> ModuleVar.t typ -> ModuleVar.t typ -> env = fun (tableType,listeEquation) type1 type2 -> 
         (tableType,(type1, type2)::listeEquation)
 
       let obtenirType : env -> ident -> ModuleVar.t typ option = fun (tableType, _) identifiant ->
-        Hashtbl.find_opt tableType identifiant
+        List.assq_opt identifiant tableType
       
-        let obtenirEquations: env -> ensEquation = fun (_,listeEq) -> listeEq
+      let obtenirEquations: env -> ensEquation = fun (_,listeEq) -> listeEq
 
 end
 
@@ -130,18 +128,18 @@ module TypeTyper : TyperSpec =
 
     type ensEquation = (ModuleEnv.ModuleVar.t typ * ModuleEnv.ModuleVar.t typ) list
 
-    let rec remplacementNormalisation : typeExpr -> typeExpr -> typeExpr -> typeExpr = fun typeInit typeAvant typeAprès ->
+    let rec remplacementNormalisation : typeExpr -> typeExpr -> typeExpr -> typeExpr = fun typeInit typeAvant typeApres ->
       match typeInit with
-        |typeVU when typeVU = typeAvant -> typeAprès
+        |typeVU when typeVU = typeAvant -> typeApres
         |TUnit |TBool |TInt |TVar(_) -> typeInit
-        |TList(type1) -> TList(remplacementNormalisation type1 typeAvant typeAprès)
-        |TProd(type1,type2) -> TProd(remplacementNormalisation type1 typeAvant typeAprès, remplacementNormalisation type2 typeAvant typeAprès)
-        |TFun(type1, type2) -> TFun(remplacementNormalisation type1 typeAvant typeAprès, remplacementNormalisation type2 typeAvant typeAprès)
+        |TList(type1) -> TList(remplacementNormalisation type1 typeAvant typeApres)
+        |TProd(type1,type2) -> TProd(remplacementNormalisation type1 typeAvant typeApres, remplacementNormalisation type2 typeAvant typeApres)
+        |TFun(type1, type2) -> TFun(remplacementNormalisation type1 typeAvant typeApres, remplacementNormalisation type2 typeAvant typeApres)
 
 
-      let rec remplacementEquations : ensEquation -> typeExpr -> typeExpr -> ensEquation = fun listeInit typeAvant typeAprès -> match listeInit with
+      let rec remplacementEquations : ensEquation -> typeExpr -> typeExpr -> ensEquation = fun listeInit typeAvant typeApres -> match listeInit with
         |[] -> []
-        |(tau1,tau2)::q -> (remplacementNormalisation tau1 typeAvant typeAprès, remplacementNormalisation tau2 typeAvant typeAprès)::(remplacementEquations q typeAvant typeAprès)
+        |(tau1,tau2)::q -> (remplacementNormalisation tau1 typeAvant typeApres, remplacementNormalisation tau2 typeAvant typeApres)::(remplacementEquations q typeAvant typeApres)
 
     let rec inference : ModuleEnv.env -> expression -> ModuleEnv.env * typeExpr = fun env express -> 
       match express with
