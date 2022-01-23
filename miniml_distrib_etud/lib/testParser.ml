@@ -4,8 +4,8 @@ open Lazyflux
 
 (* les deux types de flux utilisés: le flux à parser et le flux des solutions *)
 (* (le fait de passer () à Make assure que ces deux types de flux seront différents et ne pourront donc pas être mélangés involontairement) *)
-module Flux = Lazyflux.Make ();;
-module Solution = Lazyflux.Make ();;
+module Flux = Lazyflux.Flux;;
+module Solution = Lazyflux.Flux;;
 
 (* types des parsers généraux *)
 type ('a, 'b) result = ('b * 'a Flux.t) Solution.t;;
@@ -147,51 +147,52 @@ let unint =
   | INT i       -> i
   | _           -> assert false
 
-
+let parse_ident = Parser.ptest isident
+let parse_int = Parser.ptest isint
+let parse_bool = Parser.ptest isbool
 (* Fonctions de parsing de MiniML *)
-let accept token : (token -> (token, unit) parser) =
-  ptest ((=) token)
+let accept token : ('a, token) parser =
+  Parser.ptest ((=) token)
 
-
-let rec parse_expr : token Flux.t -> expr = fun flux ->
-  (
+let rec parse_expr (*: token Flux.t -> expr *)= fun flux ->
+  Parser.(
     (accept LET *> parse_liaison *> accept IN *> parse_expr >>=
-      fun  ((((), (ident, expr1)), ()), expr2) -> return (ELet (ident, expr1, expr2))
+      fun  (((_, (ident, expr1)), _), expr2) -> return (ELet (ident, expr1, expr2))
     ) ++
     (accept LET *> accept REC *> parse_liaison *> accept IN *> parse_expr >>=
-      fun  (((((), ()), (ident, expr1)), ()), expr2) -> return (ELetrec (ident, expr1, expr2))
+      fun  ((((_, _), (ident, expr1)), _), expr2) -> return (ELetrec (ident, expr1, expr2))
     ) ++
     ( accept PARO *> parse_expr *> parse_binop *> parse_expr *> accept PARF >>=
-      fun (((((), expr1), binop), expr2), ()) ->  if binop = EBinop (CONS) then 
+      fun ((((_, expr1), binop), expr2), _) ->  if binop = EBinop (CONS) then 
                                                     return (ECons (expr1, expr2))
                                                   else 
-                                                    EApply ( binop EProd ( expr1, expr2))
+                                                    return (EApply (binop, EProd ( expr1, expr2)))
     ) ++ 
     ( accept PARO *> parse_expr *> accept PARF >>=
-      fun (((), expr1),()) -> return expr1
+      fun ((_, expr1),_) -> return expr1
     ) ++ 
     (accept PARO *> parse_expr *> parse_expr *>  accept PARF >>=
-      fun ((((), expr1), expr2), ()) -> return (EApply (expr1, expr2))
+      fun (((_, expr1), expr2), _) -> return (EApply (expr1, expr2))
     ) ++ 
     ( accept IF *> parse_expr *> accept THEN *> parse_expr *>  accept ELSE *> parse_expr >>=
-      fun ((((((), expr1), ()), expr2), ()), expr3) -> return (EIf (expr1, expr2, expr3))
+      fun (((((_, expr1), _), expr2), _), expr3) -> return (EIf (expr1, expr2, expr3))
     ) ++
-    ( accept PARO *> accept FUN *> accept IDENT *> accept TO *> parse_expr *>  accept PARF >>=
-      fun ((((((), ()), ident), ()), expr),()) -> return (EFun (ident, expr))
+    ( accept PARO *> accept FUN *> parse_ident *> accept TO *> parse_expr *>  accept PARF >>=
+      fun (((((_, _), ident), _), expr),_) -> return (EFun (unident ident, expr))
     ) ++
-    ( accept IDENT >>=
-      fun ident -> return (EIdent ident)
+    ( parse_ident >>=
+      fun ident -> return (EIdent (unident ident))
     ) ++
     ( parse_const >>=
       fun constant -> return (EConstant constant)
     )
   ) flux
 and parse_liaison = fun flux ->
-  ( accept IDENT *> accept EQU *> parse_expr >>=
-      fun ((ident,()),expr) -> return (ident, expr)
+  Parser.( parse_ident *> accept EQU *> parse_expr >>=
+      fun ((ident,_),expr) -> return ((unident ident), expr)
   ) flux
 and parse_binop = fun flux ->
-  ( 
+  Parser.( 
     ( parse_arithop >>=
       fun arothop -> return arothop (* Ebinop inclut dans arothop *)
     ) ++
@@ -209,7 +210,7 @@ and parse_binop = fun flux ->
     )
   ) flux
 and parse_arithop = fun flux ->
-  (
+  Parser.(
     ( accept PLUS >>=
       fun  plus -> return (EBinop plus)
     ) ++
@@ -224,7 +225,7 @@ and parse_arithop = fun flux ->
     ) 
   ) flux
 and parse_boolop = fun flux ->
-  (
+  Parser.(
     ( accept AND >>=
       fun  ad -> return (EBinop ad)
     ) ++
@@ -233,7 +234,7 @@ and parse_boolop = fun flux ->
     ) 
   ) flux
 and parse_relop = fun flux ->
-  (
+  Parser.(
     ( accept EQU >>=
       fun  equ -> return (EBinop equ)
     ) ++
@@ -254,12 +255,12 @@ and parse_relop = fun flux ->
     ) 
   ) flux
 and parse_const = fun flux ->
-  (
-    ( accept INT >>=
-      fun entier -> return (CEntier entier)
+  Parser.(
+    ( parse_int >>=
+      fun int -> return (CEntier (unint int))
     ) ++
-    ( accept BOOL >>=
-      fun bool -> return (CBooleen bool)
+    ( parse_bool >>=
+      fun bool -> return (CBooleen (unbool bool))
     ) ++
     ( accept CROO  *> accept CROF >>=
       fun _ -> return CNil
