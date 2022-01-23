@@ -273,3 +273,8 @@ and parse_const = fun flux ->
 
 
 let parsefile filename = parse_expr (read_miniml_tokens_from_file filename)
+
+let toSolution:  ('a, 'b) result -> ('b * 'a Flux.t) Solution.t = fun a -> a
+let get_expr filename = match Solution.uncons (toSolution(parsefile filename)) with
+  |None -> failwith "problème rencontré"
+  |Some(((expression,_), _)) -> expression
