@@ -277,5 +277,5 @@ module Parser : Parsing =
   
   let toSolution:  ('a, 'b) result -> ('b * 'a Flux.t) Solution.t = fun a -> a
   let get_expr filename = match Solution.uncons (toSolution(parsefile filename)) with
-    |None -> failwith "problème rencontré"
+    |None -> failwith "Expression incorrecte"
     |Some(((expression,_), _)) -> expression

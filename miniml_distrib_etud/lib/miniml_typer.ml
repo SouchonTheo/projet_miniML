@@ -68,8 +68,10 @@ let obtenirEquations: env -> ensEquation = fun (_,listeEq) -> listeEq
 
 let rec remplacementNormalisation : ModuleVar.t typ -> ModuleVar.t typ -> ModuleVar.t typ -> ModuleVar.t typ = fun typeInit typeAvant typeApres ->
 match typeInit with
-  |typeVU when typeVU = typeAvant -> typeApres
-  |TUnit |TBool |TInt |TVar(_) -> typeInit
+  
+
+  |TVar(alpha) -> (match typeAvant with | TVar(beta) when TypeVariable.equal alpha beta -> typeApres | _ -> typeInit)
+  |TUnit |TBool |TInt -> typeInit 
   |TList(type1) -> TList(remplacementNormalisation type1 typeAvant typeApres)
   |TProd(type1,type2) -> TProd(remplacementNormalisation type1 typeAvant typeApres, remplacementNormalisation type2 typeAvant typeApres)
   |TFun(type1, type2) -> TFun(remplacementNormalisation type1 typeAvant typeApres, remplacementNormalisation type2 typeAvant typeApres)
@@ -78,6 +80,14 @@ match typeInit with
 let rec remplacementEquations : ensEquation -> ModuleVar.t typ -> ModuleVar.t typ -> ensEquation = fun listeInit typeAvant typeApres -> match listeInit with
   |[] -> []
   |(tau1,tau2)::q -> (remplacementNormalisation tau1 typeAvant typeApres, remplacementNormalisation tau2 typeAvant typeApres)::(remplacementEquations q typeAvant typeApres)
+
+let rec estLibre : ModuleVar.t typ -> ModuleVar.t typ -> bool = fun (TVar(alpha)) type_a_verifier -> match type_a_verifier with
+|TInt |TBool | TUnit -> true
+|TVar(beta) -> not (TypeVariable.equal alpha beta)
+|TFun(tau1,tau2) -> estLibre (TVar(alpha)) tau1 && estLibre (TVar(alpha)) tau2
+|TProd(tau1,tau2) -> estLibre (TVar(alpha)) tau1 && estLibre (TVar(alpha)) tau2 
+|TList(tau) -> estLibre (TVar(alpha)) tau
+
 
 let rec inference : env -> expr -> env * ModuleVar.t typ = fun env express -> 
 match express with
@@ -123,7 +133,7 @@ match express with
     | EBinop(tokenOP) -> (match tokenOP with
         |CONCAT -> let alpha = ModuleVar.fraiche () in 
             (env, TFun(TList(TVar(alpha)), TFun(TList(TVar(alpha)), TList(TVar(alpha)))))
-        |PLUS | MOINS |MULT |DIV -> (env, TFun(TInt, TFun(TInt, TInt)))
+        |PLUS | MOINS |MULT |DIV -> (env, TFun(TProd(TInt, TInt),TInt))
         |AND | OR -> (env, TFun(TBool, TFun(TBool, TBool)))
         |EQU |NOTEQ |INF |INFEQ |SUP |SUPEQ -> let alpha = ModuleVar.fraiche () in 
             (env, TFun(TVar(alpha), TFun(TVar(alpha), TBool)))
@@ -159,9 +169,10 @@ match liste with
     |(TList(tau1), TList(tau2)) -> normalisation ((tau1, tau2)::q) tau
     |(TFun(tau1, tau2), TFun(sigma1, sigma2)) -> normalisation ((tau1, sigma1)::(tau2,sigma2)::q) tau
     |(TProd(tau1, tau2), TProd(sigma1, sigma2)) -> normalisation ((tau1, sigma1)::(tau2,sigma2)::q) tau
-    |(TVar(alpha), TVar(rho)) -> if alpha = rho then normalisation q tau
+    |(TVar(alpha), TVar(rho)) -> if (TypeVariable.equal alpha rho) then normalisation q tau
       else normalisation (remplacementEquations q (TVar(alpha)) (TVar(rho))) (remplacementNormalisation tau (TVar(rho)) (TVar(alpha)))
-    |(TVar(alpha),rho) -> normalisation ((rho, TVar(alpha))::q) (remplacementNormalisation tau rho (TVar(alpha)))
+    |(rho, TVar(alpha)) -> normalisation ((TVar(alpha),rho)::q) tau
+    |(TVar(alpha),rho) when estLibre (TVar(alpha)) rho -> normalisation q (remplacementNormalisation tau (TVar(alpha)) rho )
     |(tau1,tau2) -> (["Incompatibilité entre "^(toString tau1)^" et "^(toString tau2)], None)
   )
 

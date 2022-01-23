@@ -18,6 +18,6 @@ let lexer_parser_typer : string -> unit = fun name ->
         )
       |Some(typeExpr) -> print_typ TypeVariable.fprintf Format.std_formatter typeExpr;;
 
+let lexer_parser : string -> unit = fun name -> print_expr Format.std_formatter (get_expr name);;
 
-
-lexer_parser_typer "/media/basile/DATA/Cours/PF/projet_ProgFonc/miniml_distrib_etud/Test/TestParser/test2.txt";;
+lexer_parser_typer "/media/basile/DATA/Cours/PF/projet_ProgFonc/miniml_distrib_etud/Test/test2.txt";;
