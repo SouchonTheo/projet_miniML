@@ -5,7 +5,6 @@ open Miniml
 open Miniml_lexer
 open Miniml_parser
 open Miniml_typer
-open TestParser
 open Miniml_printer
 
 (* ******** à compléter ********* *)
@@ -21,4 +20,4 @@ let lexer_parser_typer : string -> unit = fun name ->
 
 
 
-lexer_parser_typer "/media/basile/DATA/Cours/PF/projet_ProgFonc/miniml_distrib_etud/lib/testParser.ml";;
+lexer_parser_typer "/media/basile/DATA/Cours/PF/projet_ProgFonc/miniml_distrib_etud/Test/TestParser/test2.txt";;
